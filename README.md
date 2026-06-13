@@ -52,10 +52,7 @@ The chat API requires Azure AI Foundry project credentials. Set the following in
 
 | Config Key | Environment Variable | Description |
 |---|---|---|
-| `ProjectAdoAssistant:Foundry:Endpoint` | `ProjectAdoAssistant__Foundry__Endpoint` | Azure AI Foundry project endpoint URL |
-| `ProjectAdoAssistant:Foundry:SubscriptionId` | `ProjectAdoAssistant__Foundry__SubscriptionId` | Azure subscription ID |
-| `ProjectAdoAssistant:Foundry:ResourceGroupName` | `ProjectAdoAssistant__Foundry__ResourceGroupName` | Azure resource group name |
-| `ProjectAdoAssistant:Foundry:ProjectName` | `ProjectAdoAssistant__Foundry__ProjectName` | Azure AI Foundry project name |
+| `ProjectAdoAssistant:Foundry:Endpoint` | `ProjectAdoAssistant__Foundry__Endpoint` | Azure AI Foundry project endpoint URL (recommended project endpoint) |
 | `ProjectAdoAssistant:Foundry:AgentId` | `ProjectAdoAssistant__Foundry__AgentId` | Azure AI Foundry agent ID |
 
 Authentication uses `DefaultAzureCredential`. For local development, run `az login` or set the `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET` environment variables.

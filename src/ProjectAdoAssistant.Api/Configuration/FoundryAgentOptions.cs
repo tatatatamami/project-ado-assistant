@@ -10,15 +10,6 @@ public sealed class FoundryAgentOptions
     public string Endpoint { get; init; } = string.Empty;
 
     [Required]
-    public string SubscriptionId { get; init; } = string.Empty;
-
-    [Required]
-    public string ResourceGroupName { get; init; } = string.Empty;
-
-    [Required]
-    public string ProjectName { get; init; } = string.Empty;
-
-    [Required]
     public string AgentId { get; init; } = string.Empty;
 
     [Range(100, 30_000)]
