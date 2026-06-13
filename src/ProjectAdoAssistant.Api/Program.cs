@@ -30,9 +30,7 @@ app.UseExceptionHandler(exceptionHandlerApp =>
 
         logger.LogError(
             exception,
-            "Unhandled exception while processing {Method} {Path} with TraceId {TraceId}",
-            context.Request.Method,
-            context.Request.Path,
+            "Unhandled exception with TraceId {TraceId}",
             context.TraceIdentifier);
 
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
