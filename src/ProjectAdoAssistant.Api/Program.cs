@@ -1,13 +1,51 @@
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.Extensions.Options;
+using ProjectAdoAssistant.Api.Configuration;
+using ProjectAdoAssistant.Api.Models;
+using ProjectAdoAssistant.Core.Dtos;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Logging.ClearProviders();
+builder.Logging.AddJsonConsole();
+
+builder.Services.AddOptions<ApiOptions>()
+    .BindConfiguration(ApiOptions.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+app.UseExceptionHandler(exceptionHandlerApp =>
+{
+    exceptionHandlerApp.Run(async context =>
+    {
+        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+        var logger = context.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("UnhandledException");
+
+        logger.LogError(
+            exception,
+            "Unhandled exception while processing {Method} {Path} with TraceId {TraceId}",
+            context.Request.Method,
+            context.Request.Path,
+            context.TraceIdentifier);
+
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json";
+
+        await context.Response.WriteAsJsonAsync(
+            ApiResponse<object?>.Failure(
+                "internal_server_error",
+                "An unexpected error occurred.",
+                context.TraceIdentifier));
+    });
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -16,29 +54,25 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
+app.MapGet("/api/health", (IOptions<ApiOptions> options, IWebHostEnvironment environment, ILoggerFactory loggerFactory) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    var apiOptions = options.Value;
+    var logger = loggerFactory.CreateLogger("HealthEndpoint");
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    logger.LogInformation(
+        "Health check requested for {ServiceName} in {EnvironmentName}",
+        apiOptions.ServiceName,
+        environment.EnvironmentName);
+
+    var response = ApiResponse<HealthCheckDto>.Ok(
+        new HealthCheckDto(
+            "ok",
+            apiOptions.ServiceName,
+            environment.EnvironmentName));
+
+    return Results.Ok(response);
 })
-.WithName("GetWeatherForecast")
+.WithName("GetHealth")
 .WithOpenApi();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

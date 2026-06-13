@@ -26,6 +26,8 @@ dotnet build ProjectAdoAssistant.sln
 dotnet run --project src/ProjectAdoAssistant.Api/ProjectAdoAssistant.Api.csproj
 ```
 
+After startup, `GET /api/health` returns the API health response.
+
 ### Web
 
 ```bash
@@ -36,6 +38,7 @@ dotnet run --project src/ProjectAdoAssistant.Web/ProjectAdoAssistant.Web.csproj
 
 Set these variables as needed for local development:
 
+- `ProjectAdoAssistant__Api__ServiceName`
 - `PROJECT_ADO_ASSISTANT_ENVIRONMENT`
 - `PROJECT_ADO_ASSISTANT_LOG_LEVEL`
 - `PROJECT_ADO_ASSISTANT_AZURE_DEVOPS_ORG_URL`
