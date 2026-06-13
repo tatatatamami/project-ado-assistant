@@ -1,10 +1,19 @@
 using ProjectAdoAssistant.Web.Components;
+using ProjectAdoAssistant.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+var apiBaseUrl = builder.Configuration["ApiBaseUrl"]
+    ?? throw new InvalidOperationException("ApiBaseUrl is not configured.");
+
+builder.Services.AddHttpClient<IChatApiClient, ChatApiClient>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+});
 
 var app = builder.Build();
 

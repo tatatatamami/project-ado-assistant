@@ -1,6 +1,16 @@
 @ProjectAdoAssistant.Api_HostAddress = http://localhost:5226
 
-GET {{ProjectAdoAssistant.Api_HostAddress}}/weatherforecast/
+GET {{ProjectAdoAssistant.Api_HostAddress}}/api/health
 Accept: application/json
+
+###
+
+POST {{ProjectAdoAssistant.Api_HostAddress}}/api/chat
+Content-Type: application/json
+
+{
+  "userMessage": "Hello, what can you help me with?",
+  "threadId": null
+}
 
 ###

@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.Extensions.Options;
 using ProjectAdoAssistant.Api.Configuration;
 using ProjectAdoAssistant.Api.Models;
+using ProjectAdoAssistant.Api.Services;
 using ProjectAdoAssistant.Core.Dtos;
+using ProjectAdoAssistant.Core.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +15,13 @@ builder.Services.AddOptions<ApiOptions>()
     .BindConfiguration(ApiOptions.SectionName)
     .ValidateDataAnnotations()
     .ValidateOnStart();
+
+builder.Services.AddOptions<FoundryAgentOptions>()
+    .BindConfiguration(FoundryAgentOptions.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddSingleton<IFoundryAgentClient, FoundryAgentClient>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -71,6 +80,37 @@ app.MapGet("/api/health", (IOptions<ApiOptions> options, IWebHostEnvironment env
     return Results.Ok(response);
 })
 .WithName("GetHealth")
+.WithOpenApi();
+
+app.MapPost("/api/chat", async (
+    ChatRequestDto request,
+    IFoundryAgentClient agentClient,
+    ILoggerFactory loggerFactory,
+    CancellationToken cancellationToken) =>
+{
+    var logger = loggerFactory.CreateLogger("ChatEndpoint");
+
+    if (string.IsNullOrWhiteSpace(request.UserMessage))
+    {
+        return Results.BadRequest(
+            ApiResponse<ChatResponseDto>.Failure(
+                "invalid_request",
+                "UserMessage must not be empty.",
+                string.Empty));
+    }
+
+    logger.LogInformation(
+        "Chat request received. ThreadId: {ThreadId}",
+        request.ThreadId ?? "(new)");
+
+    var (content, threadId) = await agentClient.SendMessageAsync(
+        request.UserMessage,
+        request.ThreadId,
+        cancellationToken);
+
+    return Results.Ok(ApiResponse<ChatResponseDto>.Ok(new ChatResponseDto(content, threadId)));
+})
+.WithName("PostChat")
 .WithOpenApi();
 
 app.Run();
