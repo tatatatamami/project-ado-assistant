@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @using ProjectAdoAssistant.Core.Models
 @inject IJSRuntime JSRuntime
+@inject ProjectAdoAssistant.Web.Services.IChatApiClient ChatApiClient
 
 <PageTitle>Chat</PageTitle>
 
@@ -73,16 +74,8 @@
     private string _inputText = string.Empty;
     private bool _isLoading;
     private string? _errorMessage;
+    private string? _threadId;
     private ElementReference _textareaRef;
-
-    private static readonly string[] MockResponses =
-    [
-        "Got it! I'm a mock assistant. API integration is not yet connected.",
-        "Thanks for your message. I'll be fully operational once the Foundry Agent is wired up.",
-        "I see what you mean. This is a placeholder response until the real backend is ready.",
-        "Interesting! The actual AI response will be available after MVP-05.",
-        "Noted. Stay tuned — real responses are coming soon!",
-    ];
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -106,14 +99,12 @@
 
         try
         {
-            // Simulate network / processing delay for the mock response
-            await Task.Delay(1000);
-
-            var responseIndex = _messages.Count % MockResponses.Length;
+            var response = await ChatApiClient.SendMessageAsync(text, _threadId);
+            _threadId = response.ThreadId;
             _messages.Add(new ChatMessage
             {
                 Role = ChatRole.Assistant,
-                Content = MockResponses[responseIndex],
+                Content = response.Content,
             });
         }
         catch (Exception ex)
