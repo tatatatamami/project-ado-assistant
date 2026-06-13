@@ -1,0 +1,136 @@
+@page "/chat"
+@rendermode InteractiveServer
+@using ProjectAdoAssistant.Core.Models
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Chat</PageTitle>
+
+<h1>Chat</h1>
+
+<div class="chat-container">
+    <div class="message-list" id="message-list">
+        @foreach (var message in _messages)
+        {
+            <div class="message-wrapper @(message.Role == ChatRole.User ? "user" : "assistant")">
+                <div class="message-bubble">
+                    <span class="message-role">@(message.Role == ChatRole.User ? "You" : "Assistant")</span>
+                    <p class="message-content">@message.Content</p>
+                    <span class="message-time">@message.Timestamp.ToLocalTime().ToString("HH:mm")</span>
+                </div>
+            </div>
+        }
+        @if (_isLoading)
+        {
+            <div class="message-wrapper assistant">
+                <div class="message-bubble loading-bubble">
+                    <span class="message-role">Assistant</span>
+                    <div class="loading-indicator" role="status" aria-label="Loading…">
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger error-area" role="alert">
+            @_errorMessage
+        </div>
+    }
+
+    <div class="input-area">
+        <textarea class="form-control message-input"
+                  @ref="_textareaRef"
+                  @bind="_inputText"
+                  @bind:event="oninput"
+                  @onkeydown="HandleKeyDown"
+                  placeholder="Type a message…"
+                  rows="2"
+                  disabled="@_isLoading"
+                  aria-label="Message input"></textarea>
+        <button class="btn btn-primary send-button"
+                @onclick="SendMessageAsync"
+                disabled="@(string.IsNullOrWhiteSpace(_inputText) || _isLoading)"
+                aria-label="Send">
+            @if (_isLoading)
+            {
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                <span> Sending…</span>
+            }
+            else
+            {
+                <span>Send</span>
+            }
+        </button>
+    </div>
+</div>
+
+@code {
+    private readonly List<ChatMessage> _messages = [];
+    private string _inputText = string.Empty;
+    private bool _isLoading;
+    private string? _errorMessage;
+    private ElementReference _textareaRef;
+
+    private static readonly string[] MockResponses =
+    [
+        "Got it! I'm a mock assistant. API integration is not yet connected.",
+        "Thanks for your message. I'll be fully operational once the Foundry Agent is wired up.",
+        "I see what you mean. This is a placeholder response until the real backend is ready.",
+        "Interesting! The actual AI response will be available after MVP-05.",
+        "Noted. Stay tuned — real responses are coming soon!",
+    ];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("chatInterop.preventEnterDefault", _textareaRef);
+        }
+    }
+
+    private async Task SendMessageAsync()
+    {
+        var text = _inputText.Trim();
+        if (string.IsNullOrEmpty(text) || _isLoading)
+            return;
+
+        _errorMessage = null;
+        _inputText = string.Empty;
+
+        _messages.Add(new ChatMessage { Role = ChatRole.User, Content = text });
+        _isLoading = true;
+
+        try
+        {
+            // Simulate network / processing delay for the mock response
+            await Task.Delay(1000);
+
+            var responseIndex = _messages.Count % MockResponses.Length;
+            _messages.Add(new ChatMessage
+            {
+                Role = ChatRole.Assistant,
+                Content = MockResponses[responseIndex],
+            });
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to send message: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SendMessageAsync();
+        }
+    }
+}
