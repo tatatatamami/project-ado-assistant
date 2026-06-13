@@ -11,6 +11,7 @@ public sealed class FoundryAgentClient : IFoundryAgentClient
     private readonly AgentsClient _agentsClient;
     private readonly string _agentId;
     private readonly int _pollingIntervalMs;
+    private readonly int _timeoutMs;
     private readonly ILogger<FoundryAgentClient> _logger;
 
     public FoundryAgentClient(IOptions<FoundryAgentOptions> options, ILogger<FoundryAgentClient> logger)
@@ -18,6 +19,7 @@ public sealed class FoundryAgentClient : IFoundryAgentClient
         var opts = options.Value;
         _agentId = opts.AgentId;
         _pollingIntervalMs = opts.RunPollingIntervalMs;
+        _timeoutMs = opts.RunTimeoutMs;
         _logger = logger;
 
         var connectionString = $"{opts.Endpoint};{opts.SubscriptionId};{opts.ResourceGroupName};{opts.ProjectName}";
@@ -34,7 +36,7 @@ public sealed class FoundryAgentClient : IFoundryAgentClient
         {
             var thread = (await _agentsClient.CreateThreadAsync(cancellationToken: cancellationToken)).Value;
             threadId = thread.Id;
-            _logger.LogInformation("Created new agent thread {ThreadId}", threadId);
+            _logger.LogInformation("Created new agent thread {ThreadId}", Sanitize(threadId));
         }
 
         await _agentsClient.CreateMessageAsync(
@@ -48,13 +50,19 @@ public sealed class FoundryAgentClient : IFoundryAgentClient
             _agentId,
             cancellationToken: cancellationToken)).Value;
 
-        _logger.LogInformation("Started agent run {RunId} on thread {ThreadId}", run.Id, threadId);
+        _logger.LogInformation(
+            "Started agent run {RunId} on thread {ThreadId}",
+            Sanitize(run.Id),
+            Sanitize(threadId));
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(_timeoutMs);
 
         while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress)
         {
-            await Task.Delay(_pollingIntervalMs, cancellationToken);
-            run = (await _agentsClient.GetRunAsync(threadId, run.Id, cancellationToken)).Value;
-            _logger.LogDebug("Agent run {RunId} status: {Status}", run.Id, run.Status);
+            await Task.Delay(_pollingIntervalMs, timeoutCts.Token);
+            run = (await _agentsClient.GetRunAsync(threadId, run.Id, timeoutCts.Token)).Value;
+            _logger.LogDebug("Agent run {RunId} status: {Status}", Sanitize(run.Id), run.Status);
         }
 
         if (run.Status != RunStatus.Completed)
@@ -62,7 +70,7 @@ public sealed class FoundryAgentClient : IFoundryAgentClient
             var errorMessage = run.LastError?.Message ?? "Unknown error";
             _logger.LogWarning(
                 "Agent run {RunId} ended with status {Status}: {Error}",
-                run.Id, run.Status, errorMessage);
+                Sanitize(run.Id), run.Status, errorMessage);
             throw new InvalidOperationException(
                 $"Agent run failed with status '{run.Status}': {errorMessage}");
         }
@@ -82,4 +90,7 @@ public sealed class FoundryAgentClient : IFoundryAgentClient
 
         return (assistantContent, threadId);
     }
+
+    private static string Sanitize(string? value) =>
+        value?.Replace('\n', '_').Replace('\r', '_') ?? string.Empty;
 }

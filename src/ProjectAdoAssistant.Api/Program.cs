@@ -101,7 +101,7 @@ app.MapPost("/api/chat", async (
 
     logger.LogInformation(
         "Chat request received. ThreadId: {ThreadId}",
-        request.ThreadId ?? "(new)");
+        (request.ThreadId ?? "(new)").Replace('\n', '_').Replace('\r', '_'));
 
     var (content, threadId) = await agentClient.SendMessageAsync(
         request.UserMessage,

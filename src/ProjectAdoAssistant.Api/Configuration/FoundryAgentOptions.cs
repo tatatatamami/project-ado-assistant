@@ -21,5 +21,9 @@ public sealed class FoundryAgentOptions
     [Required]
     public string AgentId { get; init; } = string.Empty;
 
+    [Range(100, 30_000)]
     public int RunPollingIntervalMs { get; init; } = 1000;
+
+    [Range(10_000, 600_000)]
+    public int RunTimeoutMs { get; init; } = 300_000; // 5 minutes
 }

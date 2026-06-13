@@ -27,7 +27,8 @@ public sealed class ChatApiClient : IChatApiClient
 
         if (apiResponse is not { Success: true, Data: not null })
         {
-            var errorMessage = apiResponse?.Error?.Message ?? "Unexpected API response.";
+            var errorMessage = apiResponse?.Error?.Message
+                ?? $"Unexpected API response (HTTP {(int)response.StatusCode}).";
             throw new InvalidOperationException(errorMessage);
         }
 
