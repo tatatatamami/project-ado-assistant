@@ -28,7 +28,7 @@ public sealed class FoundryAgentClient : IFoundryAgentClient
 
         var projectClient = new AIProjectClient(new Uri(opts.Endpoint), new AzureIdentity::Azure.Identity.DefaultAzureCredential());
         _projectOpenAIClient = projectClient.GetProjectOpenAIClient();
-        _agentReference = new AgentReference(opts.AgentId, "latest");
+        _agentReference = new AgentReference(opts.AgentId, null);
     }
 
     public async Task<(string Content, string ThreadId)> SendMessageAsync(
@@ -36,7 +36,8 @@ public sealed class FoundryAgentClient : IFoundryAgentClient
         string? threadId,
         CancellationToken cancellationToken = default)
     {
-        var responseClient = _projectOpenAIClient.GetProjectResponsesClientForAgent(_agentReference, threadId ?? string.Empty);
+        var conversationId = string.IsNullOrWhiteSpace(threadId) ? null : threadId;
+        var responseClient = _projectOpenAIClient.GetProjectResponsesClientForAgent(_agentReference, conversationId);
 
         var options = new CreateResponseOptions
         {
