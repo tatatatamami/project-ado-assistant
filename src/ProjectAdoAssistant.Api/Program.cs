@@ -86,6 +86,7 @@ app.MapPost("/api/chat", async (
     ChatRequestDto request,
     IFoundryAgentClient agentClient,
     ILoggerFactory loggerFactory,
+    HttpContext context,
     CancellationToken cancellationToken) =>
 {
     var logger = loggerFactory.CreateLogger("ChatEndpoint");
@@ -96,7 +97,7 @@ app.MapPost("/api/chat", async (
             ApiResponse<ChatResponseDto>.Failure(
                 "invalid_request",
                 "UserMessage must not be empty.",
-                string.Empty));
+                context.TraceIdentifier));
     }
 
     logger.LogInformation(
@@ -116,7 +117,7 @@ app.MapPost("/api/chat", async (
     {
         return Results.StatusCode(StatusCodes.Status499ClientClosedRequest);
     }
-    catch (OperationCanceledException)
+    catch (TimeoutException)
     {
         return Results.StatusCode(StatusCodes.Status504GatewayTimeout);
     }
@@ -126,7 +127,7 @@ app.MapPost("/api/chat", async (
         return Results.BadRequest(ApiResponse<object?>.Failure(
             "agent_operation_failed",
             ex.Message,
-            string.Empty));
+            context.TraceIdentifier));
     }
 })
 .WithName("PostChat")

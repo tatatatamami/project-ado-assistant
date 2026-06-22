@@ -47,7 +47,7 @@ Set these variables as needed for local development:
 
 ### Foundry Agent configuration
 
-The chat API uses Microsoft Foundry Agent Service (Agent / Conversation / Response model) with Azure AI Projects 2.x SDKs.
+The chat API uses Azure AI Foundry Agent Service (Agent / Conversation / Response model) with Azure AI Projects 2.x SDKs.
 
 - Agent: definition identified by `AgentName` + `AgentVersion`
 - Conversation: chat-session context (`ConversationId`) reused across user messages
@@ -71,5 +71,6 @@ The API project currently uses:
 - `Azure.Identity` `1.14.2`
 
 `Azure.AI.Projects` and `Azure.AI.Extensions.OpenAI` are preview packages; check release notes before upgrading.
+Always verify the latest package versions in `src/ProjectAdoAssistant.Api/ProjectAdoAssistant.Api.csproj`.
 
 Authentication uses `DefaultAzureCredential`. For local development, run `az login` or set the `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET` environment variables.

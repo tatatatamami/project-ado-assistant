@@ -37,11 +37,9 @@ public sealed class FoundryAgentClient : IFoundryAgentClient
         string? conversationId,
         CancellationToken cancellationToken = default)
     {
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(_requestTimeoutMs);
-
+        // Treat null/empty/whitespace as "start a new chat session conversation".
         var resolvedConversationId = string.IsNullOrWhiteSpace(conversationId)
-            ? await CreateConversationAsync(timeoutCts.Token)
+            ? await CreateConversationAsync(cancellationToken)
             : conversationId;
         var responseClient = _projectOpenAIClient.GetProjectResponsesClientForAgent(_agentReference, resolvedConversationId);
 
@@ -55,8 +53,19 @@ public sealed class FoundryAgentClient : IFoundryAgentClient
             Sanitize(_agentReference.Name),
             Sanitize(resolvedConversationId));
 
-        var response = await responseClient.CreateResponseAsync(options, timeoutCts.Token);
-        var result = response.Value;
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(_requestTimeoutMs);
+
+        ResponseResult result;
+        try
+        {
+            var response = await responseClient.CreateResponseAsync(options, timeoutCts.Token);
+            result = response.Value;
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested && timeoutCts.IsCancellationRequested)
+        {
+            throw new TimeoutException("Foundry response request timed out.", ex);
+        }
 
         if (result.Status != OpenAI.Responses.ResponseStatus.Completed)
         {
@@ -68,7 +77,7 @@ public sealed class FoundryAgentClient : IFoundryAgentClient
         var assistantContent = result.GetOutputText();
         if (string.IsNullOrWhiteSpace(assistantContent))
         {
-            throw new InvalidOperationException("Agent response did not include output text.");
+            throw new InvalidOperationException("Agent response returned empty or whitespace-only output text.");
         }
 
         if (string.IsNullOrWhiteSpace(result.Id))
@@ -85,7 +94,7 @@ public sealed class FoundryAgentClient : IFoundryAgentClient
         var conversationId = conversation.Value.Id;
         if (string.IsNullOrWhiteSpace(conversationId))
         {
-            throw new InvalidOperationException("Conversation ID was not returned by Foundry.");
+            throw new InvalidOperationException("CreateProjectConversationAsync returned empty or whitespace-only conversation ID.");
         }
 
         return conversationId;
