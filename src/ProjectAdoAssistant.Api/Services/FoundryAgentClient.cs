@@ -5,6 +5,7 @@ using Azure.AI.Projects;
 using Microsoft.Extensions.Options;
 using OpenAI.Responses;
 using ProjectAdoAssistant.Api.Configuration;
+using ProjectAdoAssistant.Core.Dtos;
 using ProjectAdoAssistant.Core.Interfaces;
 
 #pragma warning disable OPENAI001
@@ -14,30 +15,35 @@ namespace ProjectAdoAssistant.Api.Services;
 public sealed class FoundryAgentClient : IFoundryAgentClient
 {
     private readonly ProjectOpenAIClient _projectOpenAIClient;
+    private readonly ProjectConversationsClient _projectConversationsClient;
     private readonly AgentReference _agentReference;
-    private readonly int _pollingIntervalMs;
-    private readonly int _timeoutMs;
+    private readonly int _requestTimeoutMs;
     private readonly ILogger<FoundryAgentClient> _logger;
 
     public FoundryAgentClient(IOptions<FoundryAgentOptions> options, ILogger<FoundryAgentClient> logger)
     {
         var opts = options.Value;
-        _pollingIntervalMs = opts.RunPollingIntervalMs;
-        _timeoutMs = opts.RunTimeoutMs;
+        _requestTimeoutMs = opts.RequestTimeoutMs;
         _logger = logger;
 
-        var projectClient = new AIProjectClient(new Uri(opts.Endpoint), new AzureIdentity::Azure.Identity.DefaultAzureCredential());
+        var projectClient = new AIProjectClient(new Uri(opts.ProjectEndpoint), new AzureIdentity::Azure.Identity.DefaultAzureCredential());
         _projectOpenAIClient = projectClient.GetProjectOpenAIClient();
-        _agentReference = new AgentReference(opts.AgentId, null);
+        _projectConversationsClient = _projectOpenAIClient.GetProjectConversationsClient();
+        _agentReference = new AgentReference(name: opts.AgentName, version: opts.AgentVersion);
     }
 
-    public async Task<(string Content, string ThreadId)> SendMessageAsync(
+    public async Task<ChatResponseDto> SendMessageAsync(
         string userMessage,
-        string? threadId,
+        string? conversationId,
         CancellationToken cancellationToken = default)
     {
-        var conversationId = string.IsNullOrWhiteSpace(threadId) ? null : threadId;
-        var responseClient = _projectOpenAIClient.GetProjectResponsesClientForAgent(_agentReference, conversationId);
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(_requestTimeoutMs);
+
+        var resolvedConversationId = string.IsNullOrWhiteSpace(conversationId)
+            ? await CreateConversationAsync(timeoutCts.Token)
+            : conversationId;
+        var responseClient = _projectOpenAIClient.GetProjectResponsesClientForAgent(_agentReference, resolvedConversationId);
 
         var options = new CreateResponseOptions
         {
@@ -45,12 +51,9 @@ public sealed class FoundryAgentClient : IFoundryAgentClient
         };
 
         _logger.LogInformation(
-            "Sending response request for agent {AgentId} with previous response {PreviousResponseId}",
+            "Sending response request for agent {AgentName} conversation {ConversationId}",
             Sanitize(_agentReference.Name),
-            Sanitize(threadId));
-
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(_timeoutMs);
+            Sanitize(resolvedConversationId));
 
         var response = await responseClient.CreateResponseAsync(options, timeoutCts.Token);
         var result = response.Value;
@@ -63,7 +66,29 @@ public sealed class FoundryAgentClient : IFoundryAgentClient
         }
 
         var assistantContent = result.GetOutputText();
-        return (assistantContent, result.Id);
+        if (string.IsNullOrWhiteSpace(assistantContent))
+        {
+            throw new InvalidOperationException("Agent response did not include output text.");
+        }
+
+        if (string.IsNullOrWhiteSpace(result.Id))
+        {
+            throw new InvalidOperationException("Agent response did not include response ID.");
+        }
+
+        return new ChatResponseDto(assistantContent, resolvedConversationId, result.Id);
+    }
+
+    private async Task<string> CreateConversationAsync(CancellationToken cancellationToken)
+    {
+        var conversation = await _projectConversationsClient.CreateProjectConversationAsync(cancellationToken: cancellationToken);
+        var conversationId = conversation.Value.Id;
+        if (string.IsNullOrWhiteSpace(conversationId))
+        {
+            throw new InvalidOperationException("Conversation ID was not returned by Foundry.");
+        }
+
+        return conversationId;
     }
 
     private static string Sanitize(string? value) =>

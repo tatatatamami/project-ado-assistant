@@ -10,7 +10,7 @@ Content-Type: application/json
 
 {
   "userMessage": "Hello, what can you help me with?",
-  "threadId": null
+  "conversationId": null
 }
 
 ###
