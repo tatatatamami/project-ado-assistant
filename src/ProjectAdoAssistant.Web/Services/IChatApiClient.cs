@@ -6,6 +6,6 @@ public interface IChatApiClient
 {
     Task<ChatResponseDto> SendMessageAsync(
         string userMessage,
-        string? threadId,
+        string? conversationId,
         CancellationToken cancellationToken = default);
 }

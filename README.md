@@ -44,15 +44,33 @@ Set these variables as needed for local development:
 - `PROJECT_ADO_ASSISTANT_AZURE_DEVOPS_ORG_URL`
 - `PROJECT_ADO_ASSISTANT_AZURE_DEVOPS_PAT`
 - `PROJECT_ADO_ASSISTANT_FOUNDRY_ENDPOINT`
-- `PROJECT_ADO_ASSISTANT_FOUNDRY_API_KEY`
 
 ### Foundry Agent configuration
 
-The chat API requires Azure AI Foundry project credentials. Set the following in `appsettings.Development.json` or as environment variables:
+The chat API uses Azure AI Foundry Agent Service (Agent / Conversation / Response model) with Azure AI Projects 2.x SDKs.
+
+- Agent: definition identified by `AgentName` + `AgentVersion`
+- Conversation: chat-session context (`ConversationId`) reused across user messages
+- Response: single execution result (`ResponseId`) per input
+
+Set the following in `appsettings.Development.json` or as environment variables:
 
 | Config Key | Environment Variable | Description |
 |---|---|---|
-| `ProjectAdoAssistant:Foundry:Endpoint` | `ProjectAdoAssistant__Foundry__Endpoint` | Azure AI Foundry project endpoint URL (recommended project endpoint) |
-| `ProjectAdoAssistant:Foundry:AgentId` | `ProjectAdoAssistant__Foundry__AgentId` | Azure AI Foundry agent ID |
+| `ProjectAdoAssistant:Foundry:ProjectEndpoint` | `ProjectAdoAssistant__Foundry__ProjectEndpoint` | Azure AI Foundry project endpoint URL |
+| `ProjectAdoAssistant:Foundry:AgentName` | `ProjectAdoAssistant__Foundry__AgentName` | Foundry agent name |
+| `ProjectAdoAssistant:Foundry:AgentVersion` | `ProjectAdoAssistant__Foundry__AgentVersion` | Foundry agent version (set explicitly; do not rely on implicit latest) |
+| `ProjectAdoAssistant:Foundry:RequestTimeoutMs` | `ProjectAdoAssistant__Foundry__RequestTimeoutMs` | Timeout in milliseconds for a single response request |
+
+### Foundry SDK packages
+
+The API project currently uses:
+
+- `Azure.AI.Projects` `2.1.0-beta.3`
+- `Azure.AI.Extensions.OpenAI` `2.1.0-beta.3`
+- `Azure.Identity` `1.14.2`
+
+`Azure.AI.Projects` and `Azure.AI.Extensions.OpenAI` are preview packages; check release notes before upgrading.
+Always verify the latest package versions in `src/ProjectAdoAssistant.Api/ProjectAdoAssistant.Api.csproj`.
 
 Authentication uses `DefaultAzureCredential`. For local development, run `az login` or set the `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET` environment variables.

@@ -86,6 +86,7 @@ app.MapPost("/api/chat", async (
     ChatRequestDto request,
     IFoundryAgentClient agentClient,
     ILoggerFactory loggerFactory,
+    HttpContext context,
     CancellationToken cancellationToken) =>
 {
     var logger = loggerFactory.CreateLogger("ChatEndpoint");
@@ -96,19 +97,38 @@ app.MapPost("/api/chat", async (
             ApiResponse<ChatResponseDto>.Failure(
                 "invalid_request",
                 "UserMessage must not be empty.",
-                string.Empty));
+                context.TraceIdentifier));
     }
 
     logger.LogInformation(
-        "Chat request received. ThreadId: {ThreadId}",
-        (request.ThreadId ?? "(new)").Replace('\n', '_').Replace('\r', '_'));
+        "Chat request received. ConversationId: {ConversationId}",
+        (request.ConversationId ?? "(new)").Replace('\n', '_').Replace('\r', '_'));
 
-    var (content, threadId) = await agentClient.SendMessageAsync(
-        request.UserMessage,
-        request.ThreadId,
-        cancellationToken);
+    try
+    {
+        var result = await agentClient.SendMessageAsync(
+            request.UserMessage,
+            request.ConversationId,
+            cancellationToken);
 
-    return Results.Ok(ApiResponse<ChatResponseDto>.Ok(new ChatResponseDto(content, threadId)));
+        return Results.Ok(ApiResponse<ChatResponseDto>.Ok(result));
+    }
+    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+    {
+        return Results.StatusCode(StatusCodes.Status499ClientClosedRequest);
+    }
+    catch (TimeoutException)
+    {
+        return Results.StatusCode(StatusCodes.Status504GatewayTimeout);
+    }
+    catch (InvalidOperationException ex)
+    {
+        logger.LogWarning(ex, "Chat request failed with operation error");
+        return Results.BadRequest(ApiResponse<object?>.Failure(
+            "agent_operation_failed",
+            ex.Message,
+            context.TraceIdentifier));
+    }
 })
 .WithName("PostChat")
 .WithOpenApi();

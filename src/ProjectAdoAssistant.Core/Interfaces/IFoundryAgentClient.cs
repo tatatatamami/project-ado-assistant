@@ -1,9 +1,11 @@
+using ProjectAdoAssistant.Core.Dtos;
+
 namespace ProjectAdoAssistant.Core.Interfaces;
 
 public interface IFoundryAgentClient
 {
-    Task<(string Content, string ThreadId)> SendMessageAsync(
+    Task<ChatResponseDto> SendMessageAsync(
         string userMessage,
-        string? threadId,
+        string? conversationId,
         CancellationToken cancellationToken = default);
 }

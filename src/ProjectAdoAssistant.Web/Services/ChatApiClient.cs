@@ -14,10 +14,10 @@ public sealed class ChatApiClient : IChatApiClient
 
     public async Task<ChatResponseDto> SendMessageAsync(
         string userMessage,
-        string? threadId,
+        string? conversationId,
         CancellationToken cancellationToken = default)
     {
-        var request = new ChatRequestDto(userMessage, threadId);
+        var request = new ChatRequestDto(userMessage, conversationId);
         var response = await _httpClient.PostAsJsonAsync("/api/chat", request, cancellationToken);
 
         response.EnsureSuccessStatusCode();

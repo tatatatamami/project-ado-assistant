@@ -74,7 +74,7 @@
     private string _inputText = string.Empty;
     private bool _isLoading;
     private string? _errorMessage;
-    private string? _threadId;
+    private string? _conversationId;
     private ElementReference _textareaRef;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -99,8 +99,8 @@
 
         try
         {
-            var response = await ChatApiClient.SendMessageAsync(text, _threadId);
-            _threadId = response.ThreadId;
+            var response = await ChatApiClient.SendMessageAsync(text, _conversationId);
+            _conversationId = response.ConversationId;
             _messages.Add(new ChatMessage
             {
                 Role = ChatRole.Assistant,
